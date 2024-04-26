@@ -12,15 +12,15 @@ Before you begin, ensure you have Miniconda installed on your machine. If not, y
 
 To create a Conda environment specifically for this project, open your terminal and execute the following command:
 
-\```bash
+```bash
 conda create -n ai-hackers python=3.12
-\```
+```
 
 After creating the environment, activate it by running:
 
-\```bash
+```bash
 conda activate ai-hackers
-\```
+```
 
 This will switch your terminal session to the `ai-hackers` environment.
 
@@ -33,27 +33,27 @@ Collaboration is key in software development. To manage changes and ensure the m
 1. **Create a new branch for each feature or bug fix:**
    Before starting on a new feature or fixing a bug, create a new branch to keep your changes organized and separate from the main branch.
 
-   \```bash
+   ```bash
    git checkout -b <branch-name>
-   \```
+   ```
 
    Replace `<branch-name>` with a descriptive name related to your task (e.g., `feature-login` or `bugfix-header`).
 
 2. **Keep your branch updated:**
    Regularly pull changes from the main branch to keep your branch up-to-date, reducing conflicts during merges.
 
-   \```bash
+   ```bash
    git pull origin main
-   \```
+   ```
 
 3. **Commit and push your changes:**
    Make regular commits with descriptive messages and push your changes to the remote repository frequently.
 
-   \```bash
+   ```bash
    git add .
    git commit -m "Describe your changes here"
    git push origin <branch-name>
-   \```
+   ```
 
 4. **Create a pull request:**
    Once your feature or fix is complete, initiate a pull request (PR) to merge your branch into the main branch, allowing team members to review the changes.
@@ -64,11 +64,8 @@ Collaboration is key in software development. To manage changes and ensure the m
    - Select your branch and the main branch to compare.
    - Enter details about the PR and submit it.
 
-5. **Review and merge the pull request:**
-   Have at least one other team member review the PR. Address any comments or required changes. Once approved, merge the PR.
-
-   - Click 'Merge Pull Request' once it's approved.
-   - Delete the branch if it's no longer needed.
+5. **Peer Review and merge the pull request:**
+   Have at least one other team member review the PR. Address any comments or required changes. Once you have a green light from your fellow hacker, merge the PR to main branch.
 
 ### Best Practices
 
