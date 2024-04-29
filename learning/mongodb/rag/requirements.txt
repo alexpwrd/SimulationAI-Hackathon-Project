@@ -1,0 +1,10 @@
+openai
+markdown
+pymongo
+python-dotenv
+trulens_eval
+numpy
+datasets
+llama_index
+llama-index-vector-stores-mongodb
+IPython

@@ -1,8 +1,14 @@
 import os
 import pymongo
 from dotenv import load_dotenv
-import pprint
 from openai import OpenAI
+from trulens_eval import Feedback, Select, TruCustomApp, Tru
+from trulens_eval.tru_custom_app import instrument
+from trulens_eval.feedback import Groundedness
+from trulens_eval.feedback.provider.openai import OpenAI as TruLensOpenAI
+import numpy as np
+
+tru = Tru()
 
 # Load environment variables
 dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
@@ -28,68 +34,111 @@ def get_embedding(text):
     )
     return response.data[0].embedding
 
-# Prepare the query text
-query_text = "Recommend a romantic movie suitable for the christmas season and justify your selection"
-query_vector = get_embedding(query_text)
+# RAG execution class
+class RAG:
+    @instrument
+    def retrieve(self, query: str) -> list:
+        """
+        Retrieve relevant text from vector store.
+        """
+        # Prepare the query text
+        query_vector = get_embedding(query)
 
-# Define the vector search query
-pipeline = [
-    {
-        "$vectorSearch": {
-            "index": "old_vectorindex",
-            "path": "embedding",
-            "queryVector": query_vector,
-            "numCandidates": 100,
-            "limit": 3
-        }
-    },
-    {
-        "$project": {
-            "_id": 0,
-            "id": 1,
-            "title": "$metadata.title",
-            "description": "$metadata.fullplot",
-            "score": {"$meta": "vectorSearchScore"},
-            "genres": "$metadata.genres",
-            "runtime": "$metadata.runtime",
-            "imdb": "$metadata.imdb",
-            "directors": "$metadata.directors",
-            "countries": "$metadata.countries",
-            "awards": "$metadata.awards",
-            "languages": "$metadata.languages",
-            "cast": "$metadata.cast",
-            "poster": "$metadata.poster"
-        }
-    }
-]
+        # Define the vector search query
+        pipeline = [
+            {
+                "$vectorSearch": {
+                    "index": "vector_index",
+                    "path": "embedding",
+                    "queryVector": query_vector,
+                    "numCandidates": 100,
+                    "limit": 3
+                }
+            },
+            {
+                "$project": {
+                    "_id": 0,
+                    "id": 1,
+                    "title": "$metadata.title",
+                    "description": "$metadata.fullplot",
+                    "score": {"$meta": "vectorSearchScore"},
+                    "genres": "$metadata.genres",
+                    "runtime": "$metadata.runtime",
+                    "imdb": "$metadata.imdb",
+                    "directors": "$metadata.directors",
+                    "countries": "$metadata.countries",
+                    "awards": "$metadata.awards",
+                    "languages": "$metadata.languages",
+                    "cast": "$metadata.cast",
+                    "poster": "$metadata.poster"
+                }
+            }
+        ]
+        return list(collection.aggregate(pipeline))
 
-# Execute the aggregation pipeline
-try:
-    results = list(collection.aggregate(pipeline))
-    pprint.pprint(results)
-    # Format results for sending to ChatGPT
-    formatted_results = "\n".join([f"Title: {movie['title']}, Description: {movie['description']}" for movie in results])
-
-    # Prepare messages for the chat completion
-    messages = [
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": query_text},
-        {"role": "assistant", "content": f"The top 3 movie recommendations are:\n{formatted_results}"},
-        {"role": "user", "content": "Can you summarize the results of this query?"}
-    ]
-
-    # Call the Chat Completions API
-    response = client.chat.completions.create(
+    @instrument
+    def generate_completion(self, query: str, context_str: list) -> str:
+        """
+        Generate answer from context.
+        """
+        completion = client.chat.completions.create(
         model="gpt-3.5-turbo",
-        messages=messages
-    )
+        temperature=0,
+        messages=
+        [
+            {"role": "user",
+            "content": 
+            f"We have provided context information below. \n"
+            f"---------------------\n"
+            f"{context_str}"
+            f"\n---------------------\n"
+            f"Given this information, please answer the question: {query}"
+            }
+        ]
+        ).choices[0].message.content
+        return completion
 
-    # Extract the response content
-    if response.choices:
-        assistant_message = response.choices[0].message.content
-        print("OpenAI Assistant says:", assistant_message)
-    else:
-        print("No response from OpenAI Assistant.")
+    @instrument
+    def query(self, query: str) -> str:
+        context_str = self.retrieve(query)
+        completion = self.generate_completion(query, context_str)
+        return completion
 
-except Exception as e:
-    print(f"An error occurred: {e}")
+# Set up TruLens helpers
+rag = RAG()
+provider = TruLensOpenAI()
+grounded = Groundedness(groundedness_provider=provider)
+
+# Define feedback functions
+f_groundedness = (
+    Feedback(grounded.groundedness_measure_with_cot_reasons, name = "Groundedness")
+    .on(Select.RecordCalls.retrieve.rets.collect())
+    .on_output()
+    .aggregate(grounded.grounded_statements_aggregator)
+)
+
+f_answer_relevance = (
+    Feedback(provider.relevance_with_cot_reasons, name = "Answer Relevance")
+    .on(Select.RecordCalls.retrieve.args.query)
+    .on_output()
+)
+
+f_context_relevance = (
+    Feedback(provider.context_relevance_with_cot_reasons, name = "Context Relevance")
+    .on(Select.RecordCalls.retrieve.args.query)
+    .on(Select.RecordCalls.retrieve.rets.collect())
+    .aggregate(np.mean)
+)
+
+# Create Tru app
+tru_rag = TruCustomApp(rag,
+    app_id = 'RAG v2',
+    feedbacks = [f_groundedness, f_answer_relevance, f_context_relevance])
+
+# Tells Tru app to record the execution of this query
+with tru_rag as recording:
+    rag.query("Recommend a romantic movie suitable for the christmas season and justify your selection")
+
+# Sets up dashboard
+tru.get_leaderboard(app_ids=["RAG v1"])
+tru.run_dashboard()
