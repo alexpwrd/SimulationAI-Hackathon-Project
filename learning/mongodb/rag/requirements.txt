@@ -7,4 +7,5 @@ numpy
 datasets
 llama_index
 llama-index-vector-stores-mongodb
+llama-index-indices-vector-store
 IPython

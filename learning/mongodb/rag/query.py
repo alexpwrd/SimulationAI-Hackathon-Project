@@ -1,18 +1,26 @@
 import os
 import pymongo
 from dotenv import load_dotenv
-from openai import OpenAI
-from trulens_eval import Feedback, Select, TruCustomApp, Tru
-from trulens_eval.tru_custom_app import instrument
-from trulens_eval.feedback import Groundedness
-from trulens_eval.feedback.provider.openai import OpenAI as TruLensOpenAI
 import numpy as np
 
-tru = Tru()
+from trulens_eval import Feedback, TruLlama
+from trulens_eval.feedback import Groundedness
+from trulens_eval.app import App
+from trulens_eval.feedback.provider.openai import OpenAI as TruLensOpenAI
+
+from llama_index.vector_stores.mongodb import MongoDBAtlasVectorSearch
+from llama_index.core import VectorStoreIndex
+from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.core import Settings
 
 # Load environment variables
 dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
 load_dotenv(dotenv_path)
+
+key = os.getenv('OPENAI_API_KEY')
+
+# global default
+Settings.embed_model = OpenAIEmbedding(model="text-embedding-3-small", api_key=key)
 
 # MongoDB setup
 mongo_uri = os.getenv("MONGO_URI")
@@ -24,121 +32,53 @@ collection = db["movies_records"]
 if collection.count_documents({}) == 0:
     raise ValueError("No documents found in MongoDB collection. Please check data population.")
 
-# OpenAI setup
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Initialize vector store
+vector_store = MongoDBAtlasVectorSearch(mongo_client, db_name="movies", collection_name="movies_records", index_name="vector_index", embedding_key="embedding")
+index = VectorStoreIndex.from_vector_store(vector_store)
+query_engine = index.as_query_engine(verbose=True)
 
-def get_embedding(text):
-    response = client.embeddings.create(
-        input=text,
-        model="text-embedding-3-small"
-    )
-    return response.data[0].embedding
+# Execute query
+# result = query_engine.query("Recommend a christmas movie")
 
-# RAG execution class
-class RAG:
-    @instrument
-    def retrieve(self, query: str) -> list:
-        """
-        Retrieve relevant text from vector store.
-        """
-        # Prepare the query text
-        query_vector = get_embedding(query)
+# TruLens
 
-        # Define the vector search query
-        pipeline = [
-            {
-                "$vectorSearch": {
-                    "index": "vector_index",
-                    "path": "embedding",
-                    "queryVector": query_vector,
-                    "numCandidates": 100,
-                    "limit": 3
-                }
-            },
-            {
-                "$project": {
-                    "_id": 0,
-                    "id": 1,
-                    "title": "$metadata.title",
-                    "description": "$metadata.fullplot",
-                    "score": {"$meta": "vectorSearchScore"},
-                    "genres": "$metadata.genres",
-                    "runtime": "$metadata.runtime",
-                    "imdb": "$metadata.imdb",
-                    "directors": "$metadata.directors",
-                    "countries": "$metadata.countries",
-                    "awards": "$metadata.awards",
-                    "languages": "$metadata.languages",
-                    "cast": "$metadata.cast",
-                    "poster": "$metadata.poster"
-                }
-            }
-        ]
-        return list(collection.aggregate(pipeline))
-
-    @instrument
-    def generate_completion(self, query: str, context_str: list) -> str:
-        """
-        Generate answer from context.
-        """
-        completion = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        temperature=0,
-        messages=
-        [
-            {"role": "user",
-            "content": 
-            f"We have provided context information below. \n"
-            f"---------------------\n"
-            f"{context_str}"
-            f"\n---------------------\n"
-            f"Given this information, please answer the question: {query}"
-            }
-        ]
-        ).choices[0].message.content
-        return completion
-
-    @instrument
-    def query(self, query: str) -> str:
-        context_str = self.retrieve(query)
-        completion = self.generate_completion(query, context_str)
-        return completion
-
-# Set up TruLens helpers
-rag = RAG()
 provider = TruLensOpenAI()
-grounded = Groundedness(groundedness_provider=provider)
 
-# Define feedback functions
+# select context to be used in feedback. the location of context is app specific.
+context = App.select_context(query_engine)
+
+# Define a groundedness feedback function
+grounded = Groundedness(groundedness_provider=TruLensOpenAI())
 f_groundedness = (
-    Feedback(grounded.groundedness_measure_with_cot_reasons, name = "Groundedness")
-    .on(Select.RecordCalls.retrieve.rets.collect())
+    Feedback(grounded.groundedness_measure_with_cot_reasons)
+    .on(context.collect()) # collect context chunks into a list
     .on_output()
     .aggregate(grounded.grounded_statements_aggregator)
 )
 
+# Question/answer relevance between overall question and answer.
 f_answer_relevance = (
-    Feedback(provider.relevance_with_cot_reasons, name = "Answer Relevance")
-    .on(Select.RecordCalls.retrieve.args.query)
-    .on_output()
+    Feedback(provider.relevance)
+    .on_input_output()
 )
-
+# Question/statement relevance between question and each context chunk.
 f_context_relevance = (
-    Feedback(provider.context_relevance_with_cot_reasons, name = "Context Relevance")
-    .on(Select.RecordCalls.retrieve.args.query)
-    .on(Select.RecordCalls.retrieve.rets.collect())
+    Feedback(provider.context_relevance_with_cot_reasons)
+    .on_input()
+    .on(context)
     .aggregate(np.mean)
 )
 
-# Create Tru app
-tru_rag = TruCustomApp(rag,
-    app_id = 'RAG v2',
-    feedbacks = [f_groundedness, f_answer_relevance, f_context_relevance])
+tru_query_engine_recorder = TruLlama(query_engine,
+    app_id='LlamaIndex_App1',
+    feedbacks=[f_groundedness, f_answer_relevance, f_context_relevance])
 
-# Tells Tru app to record the execution of this query
-with tru_rag as recording:
-    rag.query("Recommend a romantic movie suitable for the christmas season and justify your selection")
+# or as context manager
+with tru_query_engine_recorder as recording:
+    query_engine.query("Recommend a movie with Tom Hanks.")
 
-# Sets up dashboard
-tru.get_leaderboard(app_ids=["RAG v1"])
+from trulens_eval import Tru
+
+tru = Tru()
+
 tru.run_dashboard()
