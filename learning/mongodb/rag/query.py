@@ -75,7 +75,7 @@ tru_query_engine_recorder = TruLlama(query_engine,
 
 # or as context manager
 with tru_query_engine_recorder as recording:
-    query_engine.query("Recommend a movie with Tom Hanks.")
+    query_engine.query("Recommend a romantic movie?")
 
 from trulens_eval import Tru
 
