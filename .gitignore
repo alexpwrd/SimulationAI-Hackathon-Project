@@ -137,3 +137,11 @@ cython_debug/
 
 # Visual Studio Code settings
 .vscode/
+
+# Alex's private experimantal code
+private/
+
+# sqlite database
+learning/mongodb/rag/default.sqlite
+.sqlite
+
