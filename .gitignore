@@ -149,3 +149,7 @@ learning/mongodb/rag/default.sqlite
 learning/mongodb/rag/.streamlit/config.toml
 learning/mongodb/rag/.streamlit/credentials.tomlt
 
+credentials.tomlt
+default.sqlite
+.streamlit/config.toml
+

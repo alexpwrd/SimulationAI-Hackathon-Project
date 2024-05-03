@@ -31,14 +31,14 @@ def store_questions(collection, questions):
     else:
         print("No questions to store.")
 
-def fetch_question_by_id(collection, question_id):
-    return collection.find_one({"id": question_id})
+def fetch_question_by_id(collection, question_number):
+    return collection.find_one({"metadata.number": question_number})
 
-def store_answer(collection, question_id, answer):
-    collection.update_one({"id": question_id}, {"$set": {"answer": answer}})
+def store_answer(collection, question_number, answer):
+    collection.update_one({"metadata.number": question_number}, {"$set": {"metadata.answer": answer}})
 
 def generate_questions(scenario, previous_questions):
-    prior_context = " ".join([q['text'] for q in previous_questions]) if previous_questions else ""
+    prior_context = " ".join([q['metadata']['question_text'] for q in previous_questions]) if previous_questions else ""
     user_prompt = f"Considering these previous questions: {prior_context} Now, generate a list of 10 new questions about the consequences of {scenario}, focusing on both immediate and long-term impacts in JSON format." if prior_context else f"Generate a list of 10 new questions about the consequences of {scenario} in JSON format, covering both immediate and long-term impacts."
 
     messages = [
@@ -59,13 +59,13 @@ def generate_questions(scenario, previous_questions):
         print(f"Failed to generate questions: {e}")
         return []
 
-def generate_detailed_response(question):
+def generate_detailed_response(question_text):
     try:
         response = openai_client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a knowledgeable AI tasked with simulating the most likely outcomes for the following scenario. Describe a cascade of outcomes given the question. Provide a highly detailed answer, utilizing your maximum context window of 4096 tokens to ensure a comprehensive exploration of the topic, that's around 200 sentences or 40 paragraphs."},
-                {"role": "user", "content": question}
+                {"role": "system", "content": "You are a knowledgeable AI tasked with simulating the most likely outcomes for the imaginary scenario described in the question. Describe a cascade of outcomes form immediate to long-term effects given the question, providing a highly detailed and logical answer. Use your imagination to create this synthetic data response to help the user understand the potential consequences of the scenario in the question."},
+                {"role": "user", "content": question_text}
             ],
             max_tokens=4096
         )
@@ -85,21 +85,21 @@ def main():
     clear_collection(collection)
 
     all_questions = []
-    id_counter = 0
+    number_counter = 0
 
     for _ in range(num_iterations):
         questions_json = generate_questions(scenario, all_questions)
-        questions_for_db = [{'text': q.get('question', q.get('text', 'No question text provided')), 'id': id_counter + i + 1} for i, q in enumerate(questions_json)]
+        questions_for_db = [{'metadata': {'question_text': q.get('question_text', q.get('text', 'No question text provided')), 'number': number_counter + i + 1}} for i, q in enumerate(questions_json)]
         
         store_questions(collection, questions_for_db)
         all_questions.extend(questions_for_db)
-        id_counter += len(questions_json)
+        number_counter += len(questions_json)
 
         for question in questions_for_db:
-            question_text = question['text']
+            question_text = question['metadata']['question_text']
             detailed_response = generate_detailed_response(question_text)
-            store_answer(collection, question['id'], detailed_response)
-            print(f"Stored detailed response for question ID {question['id']}")
+            store_answer(collection, question['metadata']['number'], detailed_response)
+            print(f"Stored detailed response for question number {question['metadata']['number']}")
 
     print(f"Total questions processed: {len(all_questions)}")
     print("Simulation complete.")
