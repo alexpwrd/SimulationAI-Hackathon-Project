@@ -145,3 +145,7 @@ private/
 learning/mongodb/rag/default.sqlite
 .sqlite
 
+# removing streamlit files
+learning/mongodb/rag/.streamlit/config.toml
+learning/mongodb/rag/.streamlit/credentials.tomlt
+
