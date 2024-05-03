@@ -32,7 +32,8 @@ for doc in documents:
     new_doc = {
         "text": doc["text"],
         "answer": doc["answer"],
-        "embedding": embedding  # No need to convert to list, as it's already a list
+        "embedding": embedding,  # No need to convert to list, as it's already a list
+        "metadata": {}  # Adding a dummy metadata field
     }
     synthdata_embedding_collection.insert_one(new_doc)
 
