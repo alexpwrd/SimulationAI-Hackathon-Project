@@ -1,78 +1,129 @@
-# AI Hackers Project
+# Simulation AI and Query Interface
 
-This repository is dedicated to the AI Hackers project for Lablab.ai [Tool Face-Off: OpenAI Assistants API VS Llama-Index/MongoDB. An Eval-Driven Battle](https://lablab.ai/event/assistants-api-llamaindex-mongodb-battle).
+This repository contains two main Python scripts designed to facilitate the exploration of hypothetical scenarios through generated questions and responses, and to interact with these scenarios through a query interface.
 
-## Prerequisites
+## Getting Started
 
-Before you begin, ensure you have Miniconda installed on your machine. If not, you can download it from the [Miniconda Website](https://docs.conda.io/en/latest/miniconda.html) and follow the installation instructions for your operating system.
+### Prerequisites
 
-## Environment Setup
+Before running the scripts, ensure you have the following installed:
+- Python 3.12
+- MongoDB
+- Streamlit
+- OpenAI API key
+- Miniconda
 
-### Creating a Conda Environment
+### Installation
 
-To create a Conda environment specifically for this project, open your terminal and execute the following command:
+1. Clone the repository:
+   ```bash
+   git clone https://your-repository-url
+   ```
+2. Navigate to the repository directory:
+   ```bash
+   cd your-repository-directory
+   ```
+3. Set up a Conda environment:
+   ```bash
+   conda create --name sim python=3.12
+   conda activate sim
+   ```
+4. Install required Python packages:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-```bash
-conda create -n ai-hackers python=3.12
+### Configuration
+
+Create a `.env` file in the root directory of the project with the following environment variables:
+```
+OPENAI_API_KEY=your_openai_api_key
+MONGO_URI=your_mongodb_uri
 ```
 
-After creating the environment, activate it by running:
+#### Setting up MongoDB Atlas Search Index
 
+To use the vector search capabilities, you need to set up an Atlas Search Index on your MongoDB collection. Follow these steps to create an index named `vector_index` for the `simulation.synthdata` collection:
+
+1. Log in to your MongoDB Atlas dashboard.
+2. Navigate to your cluster where the `simulation` database is hosted.
+3. Go to the "Collections" tab, and select the `simulation` database and the `synthdata` collection.
+4. Click on "Indexes" and then click "Create Index".
+5. Choose "Search Index" and then use the following JSON configuration:
+   ```json
+   {
+     "fields": [
+       {
+         "numDimensions": 1536,
+         "path": "embedding",
+         "similarity": "cosine",
+         "type": "vector"
+       }
+     ]
+   }
+   ```
+6. Name the index `vector_index` and create the index.
+
+## Running the Scripts
+
+### `sim_start.py` - Start Simulation
+
+This script generates a series of questions based on a user-defined scenario and stores the responses in a MongoDB database.
+
+#### How to Run
+
+Execute the following command in your terminal:
 ```bash
-conda activate ai-hackers
+python sim_start.py
 ```
 
-This will switch your terminal session to the `ai-hackers` environment.
+Follow the prompts to enter the scenario you wish to explore. The script will handle the generation and storage of questions and their detailed responses.
 
-## Git Workflow for Collaboration
+### `sim_embed.py` - Embedding Creation
 
-### Creating and Managing Branches
+After generating data with `sim_start.py`, run this script to create embeddings for efficient querying.
 
-Collaboration is key in software development. To manage changes and ensure the main branch remains stable, follow these steps:
+#### How to Run
 
-1. **Create a new branch for each feature or bug fix:**
-   Before starting on a new feature or fixing a bug, create a new branch to keep your changes organized and separate from the main branch.
+Execute the following command in your terminal:
+```bash
+python sim_embed.py
+```
 
-   ```bash
-   git checkout -b <branch-name>
-   ```
+### `sim_chat.py` - Interactive Chat Interface
 
-   Replace `<branch-name>` with a descriptive name related to your task (e.g., `feature-login` or `bugfix-header`).
+This script provides a web-based interface to chat with the stored responses.
 
-2. **Keep your branch updated:**
-   Regularly pull changes from the main branch to keep your branch up-to-date, reducing conflicts during merges.
+#### How to Run
 
-   ```bash
-   git pull origin main
-   ```
+To start the Streamlit web interface, run:
+```bash
+streamlit run sim_chat.py
+```
 
-3. **Commit and push your changes:**
-   Make regular commits with descriptive messages and push your changes to the remote repository frequently.
+Navigate to the provided local URL in your web browser to interact with the application.
 
-   ```bash
-   git add .
-   git commit -m "Describe your changes here"
-   git push origin <branch-name>
-   ```
+### `sim_eval.py` - Evaluation Interface
 
-4. **Create a pull request:**
-   Once your feature or fix is complete, initiate a pull request (PR) to merge your branch into the main branch, allowing team members to review the changes.
+This script evaluates the responses using the TruLens framework.
 
-   - Navigate to your repository on GitHub.
-   - Click on 'Pull Requests'.
-   - Click 'New Pull Request'.
-   - Select your branch and the main branch to compare.
-   - Enter details about the PR and submit it.
+#### How to Run
 
-5. **Peer Review and merge the pull request:**
-   Have at least one other team member review the PR. Address any comments or required changes. Once you have a green light from your fellow hacker, merge the PR to main branch.
+Execute the following command in your terminal:
+```bash
+python sim_eval.py
+```
 
-### Best Practices
+Navigate to the provided local URL in your web browser to interact with the application. Enter queries related to the stored scenarios and view responses directly from the MongoDB database.
 
-- **Communicate with your team**: Keep everyone updated on what you are working on and any issues you encounter.
-- **Test thoroughly**: Ensure your changes are well tested before merging to avoid introducing bugs.
-- **Review code**: Engage in code reviews to maintain high code quality and learn from each other.
+## Usage Tips
 
-## Contribution
+- Ensure MongoDB is running and accessible via the URI provided in your `.env` file.
+- Check your OpenAI API key permissions if you encounter any issues with response generation.
+- Use the Streamlit interface for an interactive experience with real-time feedback.
 
-Feel free to contribute to this project by following the Git workflow outlined above and let's try to win this hackathon.
+## Support
+
+For any issues or questions, please open an issue on the GitHub repository or contact the repository maintainers.
+
+Thank you for using our Simulation AI and Query Interface tools!

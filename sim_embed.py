@@ -50,16 +50,17 @@ logging.info("Embedding and LLM models set up.")
 llama_documents = []
 for doc in documents:
     metadata = doc['metadata']
+    full_text = f"Question: {metadata['question_text']} Answer: {metadata['answer']}"  # Combine question and answer
     llama_document = Document(
-        text=metadata['question_text'],
+        text=full_text,  # Use combined text for embedding
         metadata=metadata,
-        excluded_llm_metadata_keys=["answer"],
-        excluded_embed_metadata_keys=["answer"],
+        excluded_llm_metadata_keys=["answer"],  # Adjust if necessary
+        excluded_embed_metadata_keys=["answer"],  # Adjust if necessary
         metadata_template="{key}=>{value}",
-        text_template="Question: {content}\nMetadata: {metadata_str}"
+        text_template="{content}\nMetadata: {metadata_str}"
     )
     llama_documents.append(llama_document)
-logging.info("Documents converted to Llama Document format.")
+logging.info("Documents converted to Llama Document format with both question and answer embedded.")
 
 # Parse documents into nodes and embed
 parser = SentenceSplitter()

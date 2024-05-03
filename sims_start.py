@@ -39,7 +39,7 @@ def store_answer(collection, question_number, answer):
 
 def generate_questions(scenario, previous_questions):
     prior_context = " ".join([q['metadata']['question_text'] for q in previous_questions]) if previous_questions else ""
-    user_prompt = f"Considering these previous questions: {prior_context} Now, generate a list of 10 new questions about the consequences of {scenario}, focusing on both immediate and long-term impacts in JSON format." if prior_context else f"Generate a list of 10 new questions about the consequences of {scenario} in JSON format, covering both immediate and long-term impacts."
+    user_prompt = f"Considering these previous questions: {prior_context} Now, generate a list of 10 new questions about the consequences of {scenario}, focusing on both immediate and long-term impacts in JSON format. Mention the scenario in the question." if prior_context else f"Generate a list of 10 new questions about the consequences of {scenario} in JSON format, covering both immediate and long-term impacts. Mention the scenario in the question."
 
     messages = [
         {"role": "system", "content": "You are a helpful AI tasked with generating insightful questions in JSON format."},
@@ -64,8 +64,8 @@ def generate_detailed_response(question_text):
         response = openai_client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a knowledgeable AI tasked with simulating the most likely outcomes for the imaginary scenario described in the question. Describe a cascade of outcomes form immediate to long-term effects given the question, providing a highly detailed and logical answer. Use your imagination to create this synthetic data response to help the user understand the potential consequences of the scenario in the question."},
-                {"role": "user", "content": question_text}
+                {"role": "system", "content": "You are a knowledgeable AI tasked with imagening and simulating the most likely future outcomes for the scenario described in the question. Answer the question with a detailed response."},
+                {"role": "user", "content": "Provide a detailed answer to the following question simulating this  scenario in the future " + question_text}
             ],
             max_tokens=4096
         )
