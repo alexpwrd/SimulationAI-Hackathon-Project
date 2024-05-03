@@ -153,3 +153,11 @@ credentials.tomlt
 default.sqlite
 .streamlit/config.toml
 
+# sqlite database
+*.sqlite
+
+# Streamlit configurations
+.streamlit/
+
+# Deprecated directory
+depricated/
