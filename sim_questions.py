@@ -7,8 +7,6 @@ import json
 # Load environment variables
 load_dotenv()
 
-print("URI:", os.getenv("MONGO_URI"))  # Debugging
-
 # Setup OpenAI client
 openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
@@ -19,45 +17,74 @@ def connect_to_mongodb():
     db = mongo_client["simulation"]
     return db["synthdata"]
 
-def generate_questions(scenario):
-    response = openai_client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant designed to output JSON."},
-            {"role": "user", "content": f"Generate a list of 10 questions about the consequences of {scenario}, covering immediate and long-term impacts."}
-        ],
-        response_format={"type": "json_object"}
-    )
-    print("Generated JSON:", response.choices[0].message.content)  # Debugging line to check the JSON output
-    return response.choices[0].message.content
+def clear_collection(collection):
+    collection.delete_many({})
+    print("Collection cleared successfully.")
 
-def store_questions(collection, questions_json):
-    questions_data = json.loads(questions_json)
-    # Access the list of questions directly
-    questions_list = questions_data.get('questions', [])
-    if not isinstance(questions_list, list) or not questions_list:
-        print("Error: Expected a non-empty list of dictionaries. Received:", questions_list)
-        return  # Exit if the data is not as expected
-    
-    # Convert list of strings to list of dictionaries
-    questions_dict_list = [{'question': question} for question in questions_list]
+def store_questions(collection, questions):
+    if questions:  # Check if the questions list is not empty
+        try:
+            collection.insert_many(questions)
+            print("Questions stored successfully.")
+        except Exception as e:
+            print(f"Error storing questions: {e}")
+    else:
+        print("No questions to store.")
 
-    collection.insert_many(questions_dict_list)
-    print("Questions stored successfully in MongoDB.")
-    
+def generate_questions(scenario, previous_questions):
+    # Compile context from previous questions
+    prior_context = " ".join([q['text'] for q in previous_questions]) if previous_questions else ""
+    user_prompt = f"Considering these previous questions: {prior_context} Now, generate a list of 10 new questions about the consequences of {scenario}, focusing on both immediate and long-term impacts in JSON format." if prior_context else f"Generate a list of 10 new questions about the consequences of {scenario} in JSON format, covering both immediate and long-term impacts."
+
+    messages = [
+        {"role": "system", "content": "You are a helpful AI tasked with generating insightful questions in JSON format."},
+        {"role": "user", "content": user_prompt}
+    ]
+
+    try:
+        response = openai_client.chat.completions.create(
+            model="gpt-4-turbo",
+            messages=messages,
+            response_format={"type": "json_object"}
+        )
+        # Correctly accessing the response content
+        generated_questions = json.loads(response.choices[0].message.content).get('questions', [])
+        print("Generated questions JSON:", generated_questions)
+        return generated_questions
+    except Exception as e:
+        print(f"Failed to generate questions: {e}")
+        return []
+
 def main():
     print("Welcome to the Simulation Question Generator!")
     scenario = input("Enter the scenario you want to explore: ")
+    num_iterations = int(input("How many sets of 10 questions do you want to generate? "))
+    
     collection = connect_to_mongodb()
-    questions_json = generate_questions(scenario)
-    if questions_json:
-        store_questions(collection, questions_json)
-        questions = json.loads(questions_json)
+    clear_collection(collection)
+    
+    all_questions = []
+    id_counter = 0  # Initialize a counter for question IDs
+
+    for _ in range(num_iterations):
+        questions_json = generate_questions(scenario, all_questions)
+        # Update IDs to be cumulative and handle key inconsistencies
+        questions_for_db = [{
+            'text': q.get('question', q.get('text', 'No question text provided')),  # Check for 'question' or 'text' key
+            'id': id_counter + i + 1
+        } for i, q in enumerate(questions_json)]
+        
+        store_questions(collection, questions_for_db)
+        all_questions.extend(questions_for_db)  # Append directly the questions in the same format for context preparation
+        id_counter += len(questions_json)  # Update the counter based on the number of questions generated
+        
         print("\nGenerated Questions:")
-        for question in questions:
-            print(f"- {question}")
-    else:
-        print("No valid questions generated.")
+        for question in questions_for_db:
+            print(f"- {question['text']}")
+
+    print(f"Total questions generated: {len(all_questions)}")
 
 if __name__ == "__main__":
     main()
+
+
