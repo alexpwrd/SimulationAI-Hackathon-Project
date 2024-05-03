@@ -1,7 +1,7 @@
 #sim_query.py
 
 import os
-import pymongoe
+import pymongo
 from dotenv import load_dotenv
 import numpy as np
 
