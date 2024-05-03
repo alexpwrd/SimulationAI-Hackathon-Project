@@ -1,0 +1,8 @@
+datasets==2.19.0
+llama_index==0.10.33
+numpy==1.26.4
+pandas==2.2.2
+pymongo==4.6.3
+python-dotenv==1.0.1
+trulens_eval==0.28.2
+openai==1.23.6  
