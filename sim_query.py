@@ -1,5 +1,3 @@
-#sim_query.py
-
 import os
 import pymongo
 from dotenv import load_dotenv
@@ -21,7 +19,7 @@ load_dotenv(dotenv_path)
 
 key = os.getenv('OPENAI_API_KEY')
 
-# Set the global default embedding model
+# global default
 Settings.embed_model = OpenAIEmbedding(model="text-embedding-3-small", api_key=key)
 
 # MongoDB setup
@@ -34,28 +32,36 @@ collection = db["synthdata"]
 if collection.count_documents({}) == 0:
     raise ValueError("No documents found in MongoDB collection. Please check data population.")
 
-# Initialize vector store for the simulation data
+# Initialize vector store
 vector_store = MongoDBAtlasVectorSearch(mongo_client, db_name="simulation", collection_name="synthdata", index_name="vector_index", embedding_key="embedding")
 index = VectorStoreIndex.from_vector_store(vector_store)
 query_engine = index.as_query_engine(verbose=True)
 
-# TruLens setup
+# Execute query
+# result = query_engine.query("What are the potential long-term effects of COVID-19 on global health?")
+
+# TruLens
+
 provider = TruLensOpenAI()
+
+# select context to be used in feedback. the location of context is app specific.
 context = App.select_context(query_engine)
 
-# Feedback functions
-grounded = Groundedness(groundedness_provider=provider)
+# Define a groundedness feedback function
+grounded = Groundedness(groundedness_provider=TruLensOpenAI())
 f_groundedness = (
     Feedback(grounded.groundedness_measure_with_cot_reasons)
-    .on(context.collect())
+    .on(context.collect()) # collect context chunks into a list
     .on_output()
     .aggregate(grounded.grounded_statements_aggregator)
 )
 
+# Question/answer relevance between overall question and answer.
 f_answer_relevance = (
     Feedback(provider.relevance)
     .on_input_output()
 )
+# Question/statement relevance between question and each context chunk.
 f_context_relevance = (
     Feedback(provider.context_relevance_with_cot_reasons)
     .on_input()
@@ -63,14 +69,16 @@ f_context_relevance = (
     .aggregate(np.mean)
 )
 
-# Using TruLlama to record feedback during queries
-with TruLlama(query_engine, app_id='AI_Simulator', feedbacks=[f_groundedness, f_answer_relevance, f_context_relevance]) as recording:
-    # Perform a vector-based query
-    result = query_engine.query("What would be the immediate impact of World War 3 on global supply chains?")
+tru_query_engine_recorder = TruLlama(query_engine,
+    app_id='Simulation_AI',
+    feedbacks=[f_groundedness, f_answer_relevance, f_context_relevance])
 
-# Display results and run feedback analysis if needed
-print("Query Results:", result)
+# or as context manager
+with tru_query_engine_recorder as recording:
+    query_engine.query("What are the immediate measures recommended by health organizations in response to COVID-20?")
 
 from trulens_eval import Tru
+
 tru = Tru()
+
 tru.run_dashboard()
