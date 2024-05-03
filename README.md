@@ -1,6 +1,8 @@
-# Simulation AI and Query Interface
+# Simulation AI - Simulate the Future
 
-This repository contains two main Python scripts designed to facilitate the exploration of hypothetical scenarios through generated questions and responses, and to interact with these scenarios through a query interface.
+Welcome to the forefront of scenario analysis. Gnerate insightful questions and responses, coupled with a dynamic interface for engaging with hypothetical scenarios. Ideal for strategists, researchers, and innovators, our tools facilitate the exploration of complex situations, enabling users to make well-informed decisions based on simuluted future scenarios. Embrace a realm of possibilities and endless number of future worlds with Simulation AI and revolutionize your approach to problem-solving and strategic planning.
+
+This project was created for the [Assistants API LlamaIndex MongoDB Battle Hackathon](https://lablab.ai/event/assistants-api-llamaindex-mongodb-battle).
 
 ## Getting Started
 
@@ -11,23 +13,33 @@ Before running the scripts, ensure you have the following installed:
 - MongoDB
 - Streamlit
 - OpenAI API key
-- Miniconda
+- A Python environment manager (e.g., Miniconda, virtualenv)
 
 ### Installation
 
 1. Clone the repository:
    ```bash
-   git clone https://your-repository-url
+   git clone https://github.com/alexpwrd/aihackers.git
    ```
 2. Navigate to the repository directory:
    ```bash
-   cd your-repository-directory
+   cd aihackers
    ```
-3. Set up a Conda environment:
-   ```bash
-   conda create --name sim python=3.12
-   conda activate sim
-   ```
+3. Set up a Python environment:
+   You can use Miniconda or any other Python environment manager you prefer. Below are instructions for Miniconda and virtualenv as examples:
+
+   - **Using Miniconda**:
+     ```bash
+     conda create --name sim python=3.12
+     conda activate sim
+     ```
+
+   - **Using virtualenv**:
+     ```bash
+     python -m venv sim-env
+     source sim-env/bin/activate  # On Windows use `sim-env\Scripts\activate`
+     ```
+
 4. Install required Python packages:
    ```bash
    pip install -r requirements.txt
@@ -119,11 +131,10 @@ Navigate to the provided local URL in your web browser to interact with the appl
 ## Usage Tips
 
 - Ensure MongoDB is running and accessible via the URI provided in your `.env` file.
-- Check your OpenAI API key permissions if you encounter any issues with response generation.
 - Use the Streamlit interface for an interactive experience with real-time feedback.
 
 ## Support
 
-For any issues or questions, please open an issue on the GitHub repository or contact the repository maintainers.
+For any issues or questions, please open an issue on the GitHub repository or contact us.
 
 Thank you for using our Simulation AI and Query Interface tools!
