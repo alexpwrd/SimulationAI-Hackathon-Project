@@ -39,16 +39,20 @@ def store_answer(collection, question_number, answer):
 
 def generate_questions(scenario, previous_questions):
     prior_context = " ".join([q['metadata']['question_text'] for q in previous_questions]) if previous_questions else ""
-    user_prompt = f"Considering these previous questions: {prior_context} Now, generate a list of 10 new questions about the consequences of {scenario}, focusing on both immediate and long-term impacts in JSON format. Mention the scenario in the question." if prior_context else f"Generate a list of 10 new questions about the consequences of {scenario} in JSON format, covering both immediate and long-term impacts. Mention the scenario in the question."
+    user_prompt = (f"Considering these previous questions: {prior_context} Now, generate a list of 10 new questions about the consequences of {scenario}, "
+                   "focusing on both immediate and long-term impacts in JSON format. Mention the scenario in the question. "
+                   "Each question should be a JSON object with the key 'question_text'.") if prior_context else (
+                   f"Generate a list of 10 new questions about the consequences of {scenario} in JSON format, covering both immediate and long-term impacts. "
+                   "Mention the scenario in the question. Each question should be a JSON object with the key 'question_text'.")
 
     messages = [
-        {"role": "system", "content": "You are a helpful AI tasked with generating insightful questions in JSON format."},
+        {"role": "system", "content": "You are a helpful AI tasked with generating insightful questions in JSON format. Each question should be formatted as a JSON object with a single key 'question_text' that holds the question text."},
         {"role": "user", "content": user_prompt}
     ]
 
     try:
         response = openai_client.chat.completions.create(
-            model="gpt-4-turbo",
+            model="gpt-4o",
             messages=messages,
             response_format={"type": "json_object"}
         )
